@@ -29,10 +29,18 @@ RUN apk add --no-cache --virtual .build-deps \
         pdo_pgsql \
         intl \
         opcache \
-    && curl -s https://getcomposer.org/installer | \
-        php -- --install-dir=/usr/local/bin/ --filename=composer \
-    && composer global require laravel/installer \
     && apk del -f .build-deps
+
+# Composer
+COPY --from=composer:latest /usr/bin/composer /usr/local/bin/composer
+
+# Set up global Composer path for www-data
+RUN mkdir -p /var/www/.composer && \
+    chown -R www-data:www-data /var/www/.composer
+
+# Add Composer binaries to PATH
+#ENV PATH="/var/www/.composer/vendor/bin:$PATH"
+ENV PATH="/home/www-data/.composer/vendor/bin:$PATH"
 
 # Set up user permissions
 ARG PUID=1000
@@ -49,6 +57,10 @@ RUN mkdir -p /var/www/html \
 
 # Switch to non-root user
 USER www-data
+
+# Install Laravel globally
+RUN composer global require laravel/installer && \
+    laravel --version
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s \
